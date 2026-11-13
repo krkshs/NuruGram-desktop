@@ -19,9 +19,22 @@ function Publish-Executable([string]$Repo, [string]$Hash, [object]$Manifest, [st
         $release = Invoke-RestMethod -Method Post -Uri ($api + '/releases') -Headers $headers -ContentType 'application/json' -Body ([Text.Encoding]::UTF8.GetBytes($body))
     }
     foreach ($fileName in @('Telegram.exe','Telegram.exe.manifest.json')) {
-        if (!($release.assets | Where-Object name -EQ $fileName)) {
+        $localFile = Join-Path $Repo $fileName
+        $expectedSize = (Get-Item -LiteralPath $localFile).Length
+        $existing = $release.assets | Where-Object name -EQ $fileName
+        if ($existing -and ($existing.state -ne 'uploaded' -or $existing.size -ne $expectedSize)) {
+            Invoke-RestMethod -Method Delete -Uri ($api + '/releases/assets/' + $existing.id) -Headers $headers | Out-Null
+            $existing = $null
+        }
+        if (!$existing) {
             $upload = ($release.upload_url -replace '\{\?name,label\}$','') + '?name=' + [Uri]::EscapeDataString($fileName)
-            Invoke-RestMethod -Method Post -Uri $upload -Headers $headers -ContentType 'application/octet-stream' -InFile (Join-Path $Repo $fileName) | Out-Null
+            $responseFile = Join-Path $Repo ('.git/release-upload-' + $fileName + '.json')
+            $curlConfig = 'header = "Authorization: Bearer ' + $credential.password + '"' + [Environment]::NewLine + 'header = "Content-Type: application/octet-stream"' + [Environment]::NewLine + 'header = "Expect:"'
+            $curlConfig | & curl.exe --config - --http1.1 --fail-with-body --request POST --data-binary ('@' + $localFile) --url $upload --output $responseFile --silent --show-error --connect-timeout 30 --max-time 600
+            if ($LASTEXITCODE -ne 0) { throw ('GitHub asset upload failed: curl exit ' + $LASTEXITCODE) }
+            $asset = Get-Content -Raw -LiteralPath $responseFile | ConvertFrom-Json
+            if ($asset.state -ne 'uploaded' -or $asset.size -ne $expectedSize) { throw 'GitHub returned an incomplete asset.' }
+            if ($fileName -eq 'Telegram.exe' -and $asset.digest -and $asset.digest -ne ('sha256:' + $Hash.ToLowerInvariant())) { throw 'GitHub asset digest differs from the local client.' }
         }
     }
     return $release.html_url
