@@ -1,0 +1,11 @@
+{
+  "OriginalSha256": "3864695188C5D564C7A6036B04ADB4E67D589F7843C51891155EA4905EB41963",
+  "PatchedSha256": "D7C5FB64FE20CA3F23B287810C49086793776359F3B1C0058C555357E3DE66A0",
+  "PublicKeySha256": "2DA9E4C06C591D03F59CA5D57D306FAB8CBFDC89CA6B45FA89588B9AE05510CC",
+  "RsaKeysReplaced": 3,
+  "Ipv4AddressesReplaced": 9,
+  "Ipv6AddressesReplaced": 8,
+  "Endpoint": "31.77.17.214:443",
+  "Client": "Official Telegram Desktop 7.4.2.0",
+  "Repository": "https://github.com/krkshs/NuruGram-desktop"
+}
